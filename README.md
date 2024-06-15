@@ -1,91 +1,56 @@
 #include <Servo.h>
 
+// Define pin assignments
 const int soilMoisturePin = A0;
-const int pumpPin = 9;
 const int potentiometerPin = A1;
-const int buzzerPin = 3;
-const int ledPin = 4;
+const int pumpPin = 9;
+const int ledPin = 11;
+const int buzzerPin = 12;
 const int buttonPin = 2;
 
 Servo servoMotor;
-int moistureThreshold = 0;
-bool isSystemActive = false;
 
 void setup() {
   pinMode(soilMoisturePin, INPUT);
+  pinMode(potentiometerPin, INPUT);
   pinMode(pumpPin, OUTPUT);
-  pinMode(buzzerPin, OUTPUT);
   pinMode(ledPin, OUTPUT);
+  pinMode(buzzerPin, OUTPUT);
   pinMode(buttonPin, INPUT_PULLUP);
   servoMotor.attach(10);
-  Serial.begin(9600);
 }
 
 void loop() {
-  if (isSystemActive) {
-    checkSoilMoisture();
+  // Check if the button is pressed to wake up the system
+  if (digitalRead(buttonPin) == LOW) {
+    int soilMoisture = analogRead(soilMoisturePin);
+    int thresholdValue = map(analogRead(potentiometerPin), 0, 1023, 0, 1023); // Read potentiometer value and map it to the range [0, 1023]
+
+    if (soilMoisture < thresholdValue) {
+      // Water the plants
+      digitalWrite(pumpPin, HIGH);
+      servoMotor.write(90);
+      delay(5000); // Watering duration
+
+      // Provide feedback
+      digitalWrite(ledPin, HIGH);
+      tone(buzzerPin, 2000, 100); // Emit a short beep
+
+      delay(5000); // Watering duration
+      
+      // Stop watering
+      digitalWrite(pumpPin, LOW);
+      servoMotor.write(0);
+
+      // Provide feedback
+      digitalWrite(ledPin, LOW);
+      tone(buzzerPin, 2000, 100); // Emit a short beep
+    }
   } else {
-    enterSleepMode();
-  }
-}
-
-void checkSoilMoisture() {
-  int soilMoisture = analogRead(soilMoisturePin);
-  moistureThreshold = map(analogRead(potentiometerPin), 0, 1023, 0, 1023);
-
-  Serial.print("Soil Moisture: ");
-  Serial.print(soilMoisture);
-  Serial.print(", Threshold: ");
-  Serial.println(moistureThreshold);
-
-  if (soilMoisture < moistureThreshold) {
-    waterPlants();
+    // Enter sleep mode
+    // Add code to put the system in sleep mode here
   }
 
   delay(1000); // Check soil moisture every second
 }
 
-void waterPlants() {
-  digitalWrite(pumpPin, HIGH);
-  servoMotor.write(90);
-  blinkLED();
-  beep();
-  delay(5000); // Watering duration
-  digitalWrite(pumpPin, LOW);
-  servoMotor.write(0);
-  blinkLED();
-  beep();
-}
-
-void blinkLED() {
-  digitalWrite(ledPin, HIGH);
-  delay(100);
-  digitalWrite(ledPin, LOW);
-}
-
-void beep() {
-  digitalWrite(buzzerPin, HIGH);
-  delay(100);
-  digitalWrite(buzzerPin, LOW);
-}
-
-void enterSleepMode() {
-  digitalWrite(pumpPin, LOW);
-  servoMotor.write(0);
-  Serial.println("Entering sleep mode...");
-  while (!isButtonPressed()) {
-    // Sleep mode logic
-  }
-  isSystemActive = true;
-  Serial.println("Waking up...");
-}
-
-bool isButtonPressed() {
-  if (digitalRead(buttonPin) == LOW) {
-    delay(50); // Debounce delay
-    if (digitalRead(buttonPin) == LOW) {
-      return true;
-    }
-  }
-  return false;
-}
